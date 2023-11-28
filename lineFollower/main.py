@@ -11,7 +11,7 @@ lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
 
 errorMaskLine	= [70.0, 30.0, 0.0, -30.0, -70.0]	#normal line
 
-#pid controller configurations https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller
+#pid controller configurations https://en.wikipedia.org/wiki/Proportional–integral–derivative_controller
 proportionGain	= 0.70
 proportionMax	= 1.00
 integralGain	= 0.05
