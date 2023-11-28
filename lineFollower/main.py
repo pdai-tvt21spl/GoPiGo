@@ -1,19 +1,17 @@
 import time
-from easygopigo3 import EasyGoPiGo3 # importing the EasyGoPiGo3 class
+from easygopigo3 import EasyGoPiGo3
 from di_sensors.easy_line_follower import EasyLineFollower
 #static values for car instance could be provided as commandline arguments
 ID = 0				#id of car exposed to mqtt
-maxSpeed = 250			#the speed
-#envBlack = [0.045, 0.045, 0.045, 0.045, 0.045]
+maxSpeed = 250
 envBlack = [0.2590420332355816, 0.3118279569892473, 0.3176930596285435, 0.3225806451612903, 0.21896383186705767]
-#envWhite = [0.13, 0.13, 0.13, 0.13, 0.13]
 envWhite = [0.3509286412512219, 0.39296187683284456, 0.40371456500488756, 0.39296187683284456, 0.2903225806451613]
-lineBlackTrigger = [(envWhite[0]+envBlack[0])/2, (envWhite[1]+envBlack[1])/2, (envWhite[2]+envBlack[2])/2, (envWhite[3]+envBlack[3])/2, (envWhite[4]+envBlack[4])/2]    #light cutoff values
+lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
 
 
 errorMaskLine	= [70.0, 30.0, 0.0, -30.0, -70.0]	#normal line
 
-#pid values
+#pid controller configurations https://en.wikipedia.org/wiki/Proportional–integral–derivative_controller
 proportionGain	= 0.70
 proportionMax	= 1.00
 integralGain	= 0.05
@@ -52,11 +50,6 @@ class carContext:
 		self.moveCtx = movementContext(gpg, proportionGain, proportionMax, integralGain, integralMax, derivitiveGain, derivitiveMax)
 
 
-
-def getLightPattern(line):
-	return line.read() #("raw")
-
-
 #0 = line
 #1 = package load/unloadpoint
 #2 = bridge point
@@ -76,14 +69,12 @@ def interpretLightPattern(lightPattern, carContext, line):
 		carContext.moveCtx.It = 0;
 		carContext.moveCtx.gpg.drive_cm(5.8, True)
 		carContext.moveCtx.gpg.turn_degrees(-90)
-#		getLightPattern(line)
 		return 0
 	if clights == [0, 0, 1, 1, 1]:
 		carContext.moveCtx.gpg.stop()
 		carContext.moveCtx.It = 0
 		carContext.moveCtx.gpg.drive_cm(5.8, True)
 		carContext.moveCtx.gpg.turn_degrees(90)
-#		getLightPattern(line)
 		return 0
 	#check for [1, 0, 0, 0, 1] bridge pattern
 	if clights == [1, 0, 0, 0, 1]:
@@ -164,23 +155,22 @@ def main():
 
 #	calibration helper
 	for x in range(5):
-		lits = getLightPattern(line)
+		lits = line.read()
 		print(lits, interpretLightPattern(lits, ctx, line));
 		time.sleep(1)
 
 	ptime = time.time()
-	lits = getLightPattern(line)
+	lits = line.read()
 
 	while button.is_button_pressed() == False:
 		if distance.read() < 10:
 			ctx.moveCtx.gpg.stop()
-#			print("roadBlock")
 			continue;
 		if interpretLightPattern(lits, ctx, line) != 0:
 			ctx.moveCtx.gpg.stop()
 			break;
 		ctime = time.time();
-		lits=getLightPattern(line)
+		lits=line.read()
 		motorCtrl(lits, ctx, ctime, ptime)
 		if button.is_button_pressed():
 			break;
