@@ -3,22 +3,22 @@ from easygopigo3 import EasyGoPiGo3 # importing the EasyGoPiGo3 class
 from di_sensors.easy_line_follower import EasyLineFollower
 #static values for car instance could be provided as commandline arguments
 ID = 0				#id of car exposed to mqtt
-maxSpeed = 300			#the speed
+maxSpeed = 250			#the speed
 #envBlack = [0.045, 0.045, 0.045, 0.045, 0.045]
-envBlack = [0.03812316715542522, 0.055718475073313775, 0.060215053763440864, 0.0715542521994135, 0.042033235581622676]
+envBlack = [0.2590420332355816, 0.3118279569892473, 0.3176930596285435, 0.3225806451612903, 0.21896383186705767]
 #envWhite = [0.13, 0.13, 0.13, 0.13, 0.13]
-envWhite = [0.12864125122189637, 0.18025415444770285, 0.18240469208211146, 0.19745845552297164, 0.1118279569892473]
+envWhite = [0.3509286412512219, 0.39296187683284456, 0.40371456500488756, 0.39296187683284456, 0.2903225806451613]
 lineBlackTrigger = [(envWhite[0]+envBlack[0])/2, (envWhite[1]+envBlack[1])/2, (envWhite[2]+envBlack[2])/2, (envWhite[3]+envBlack[3])/2, (envWhite[4]+envBlack[4])/2]    #light cutoff values
 
 
 errorMaskLine	= [70.0, 30.0, 0.0, -30.0, -70.0]	#normal line
 
 #pid values
-proportionGain	= 0.80
+proportionGain	= 0.70
 proportionMax	= 1.00
 integralGain	= 0.05
-integralMax	= 0.15
-derivitiveGain	= 0.50
+integralMax	= 0.10
+derivitiveGain	= 0.40
 derivitiveMax	= 1.00
 
 
@@ -42,6 +42,8 @@ class movementContext:
  		self.Dg = deriGain
 		self.Dm = deriMax
  		self.Ep = 0
+		self.Mr = 0
+		self.Ml = 0
 
 
 class carContext:
@@ -52,16 +54,7 @@ class carContext:
 
 
 def getLightPattern(line):
-#	print line.read("bivariate")
 	return line.read() #("raw")
-#	val=[0, 0, 0, 0, 0]
-#	for i in range(5):
-#		valn = line.read("raw")
-#		for ii in range(5):
-#			val[ii] += valn[ii]
-#	for i in range(len(val)):
-#		val[i] /= 5
-#	return val
 
 
 #0 = line
@@ -72,7 +65,7 @@ def interpretLightPattern(lightPattern, carContext, line):
 	clights = [0, 0, 0, 0, 0]
 	for i in range(len(lightPattern)):
 		clights[i] = 1 if lightPattern[i] < lineBlackTrigger[i] else 0;
-	#print(clights)
+	print(clights)
 	#check for [1, 0, 1, 0, 1] pattern and inform mqtt of either unload or load procedure
 	if clights == [1, 0, 1, 0, 1]:
 		carContext.moveCtx.gpg.stop()
@@ -99,8 +92,11 @@ def interpretLightPattern(lightPattern, carContext, line):
 
 	if clights == [0, 0, 0, 0, 0]:
 		carContext.moveCtx.gpg.stop()
-		carContext.moveCtx.gpg.set_speed(50)
-		carContext.moveCtx.gpg.drive_cm(-20)
+		carContext.moveCtx.gpg.set_speed(100)
+		carContext.moveCtx.gpg.steer(carContext.moveCtx.Ml*-1, carContext.moveCtx.Mr*-1)
+#		carContext.moveCtx.gpg.set_speed(75)
+		#carContext.moveCtx.gpg.drive_cm(-15)
+		time.sleep(3)
 		carContext.moveCtx.gpg.stop()
 #		carContext.moveCtx.gpg.set_speed(10)
 		return 0;
@@ -122,8 +118,13 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 #	softErr = ((softErr/100.0)*2+hardErr)/3
 	softErr /= 100.0
 
+	speedVar = 0;
+	for i in range(len(lightPattern)):
+		speedVar += clamp(float(lightPattern[i]-envWhite[i])/float(envBlack[i]-envWhite[i]), 0, 1)*abs(errorMaskLine[i]);
+	speedVar /= 200;
+
 	#set speed of movement
-	ctx.moveCtx.gpg.set_speed(maxSpeed-abs(maxSpeed*0.8*softErr))
+	ctx.moveCtx.gpg.set_speed(maxSpeed-abs(maxSpeed*0.7*speedVar))
 
 	#calculate PID
 	prop = clamp(softErr, ctx.moveCtx.Pm*-1, ctx.moveCtx.Pm);
@@ -148,6 +149,8 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 		lMotor = 100.0;
 		rMotor = (-1.0-controllError)*-100.0
 	ctx.moveCtx.gpg.steer(lMotor, rMotor)
+	ctx.moveCtx.Ml = lMotor;
+	ctx.moveCtx.Mr = rMotor;
 
 
 
