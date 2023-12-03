@@ -1,6 +1,8 @@
 import time
 from easygopigo3 import EasyGoPiGo3
 from di_sensors.easy_line_follower import EasyLineFollower
+import paho.mqtt.client as mqtt
+
 #static values for car instance could be provided as commandline arguments
 ID = 0				#id of car exposed to mqtt
 maxSpeed = 250
@@ -143,7 +145,10 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 	ctx.moveCtx.Ml = lMotor;
 	ctx.moveCtx.Mr = rMotor;
 
-
+def onMessage(client, userdata, message):
+    print(f"Received message '{message.payload}' on topic {message.topic}")
+    #handle message
+    return 0
 
 def main():
 	gpg = EasyGoPiGo3()
@@ -152,6 +157,13 @@ def main():
 	line = EasyLineFollower()
 	ctx = carContext(ID, gpg);
 	ctx.moveCtx.gpg.stop();
+
+    #hostAddr = "" #host IP address
+    #client = mqtt.Client(client_id = str(ID), clean_session=False)
+    #client.connect(host = hostAddr)
+    #client.loop_start()
+    #client.subscribe("robot/bridge/unlock")
+    #client.on_message = onMessage
 
 #	calibration helper
 	for x in range(5):
