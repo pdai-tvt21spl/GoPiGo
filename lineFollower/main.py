@@ -7,18 +7,7 @@ maxSpeed = 250
 envBlack = [0.2590420332355816, 0.3118279569892473, 0.3176930596285435, 0.3225806451612903, 0.21896383186705767]
 envWhite = [0.3509286412512219, 0.39296187683284456, 0.40371456500488756, 0.39296187683284456, 0.2903225806451613]
 lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
-
-
 errorMaskLine    = [70.0, 30.0, 0.0, -30.0, -70.0]    #normal line
-
-#pid controller configurations https://en.wikipedia.org/wiki/Proportional–integral–derivative_controller
-proportionGain  = 0.70
-proportionMax   = 1.00
-integralGain    = 0.05
-integralMax     = 0.10
-derivitiveGain  = 0.40
-derivitiveMax   = 1.00
-
 
 def clamp(value, min, max):
     if value < min:
@@ -27,11 +16,10 @@ def clamp(value, min, max):
         return max;
     return value;
 
-
 class movementContext:
-    def __init__(self, gpg, propGain, propMax, intgGain, intgMax, deriGain, deriMax):
+    def __init__(self, gpg, propGain=0.70, propMax=1.00, intgGain=0.05, intgMax=0.10, deriGain=0.40, deriMax=1.00):
         self.gpg = gpg
-        #pid values
+        #pid controller configurations https://en.wikipedia.org/wiki/Proportional–integral–derivative_controller
         self.Pg = propGain
         self.Pm = propMax
         self.Ig = intgGain
@@ -43,12 +31,10 @@ class movementContext:
         self.Mr = 0
         self.Ml = 0
 
-
 class carContext:
     def __init__(self, id, gpg):
         self.id = id
-        self.moveCtx = movementContext(gpg, proportionGain, proportionMax, integralGain, integralMax, derivitiveGain, derivitiveMax)
-
+        self.moveCtx = movementContext(gpg)
 
 #0 = line
 #1 = package load/unloadpoint
@@ -105,8 +91,8 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
     softErr = 0
     for i in range(len(lightPattern)):
         softErr += clamp(float(lightPattern[i]-envWhite[i])/float(envBlack[i]-envWhite[i]), 0, 1)*errorMaskLine[i];
-#   softErr = (softErr/100.0+hardErr*2)/3
-#   softErr = ((softErr/100.0)*2+hardErr)/3
+    #softErr = (softErr/100.0+hardErr*2)/3
+    #softErr = ((softErr/100.0)*2+hardErr)/3
     softErr /= 100.0
 
     speedVar = 0;
@@ -126,7 +112,7 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
     ctx.moveCtx.It = intg;
     ctx.moveCtx.Ep = softErr;
 
-    #calculate motor controll values
+    #calculate motor control values
     lMotor = 0;
     rMotor = 0;
     if abs(softErr) <= 0.08:
