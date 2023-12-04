@@ -48,7 +48,7 @@ class carContext:
 	def __init__(self, id, gpg, state):
 		self.id = id
 		self.moveCtx = movementContext(gpg, proportionGain, proportionMax, integralGain, integralMax, derivitiveGain, derivitiveMax)
-		self.state = state
+  	self.state = state
 
 #0 = line
 #1 = package load/unloadpoint
@@ -175,6 +175,7 @@ def main():
 	lits = line.read()
 
 	while button.is_button_pressed() == False:
+
 		# someting to determen based of state
 		lits=line.read();
 		nxtState = 0;
