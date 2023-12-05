@@ -3,7 +3,7 @@ from easygopigo3 import EasyGoPiGo3
 from di_sensors.easy_line_follower import EasyLineFollower
 #static values for car instance could be provided as commandline arguments
 ID = 0				#id of car exposed to mqtt
-maxSpeed = 250
+maxSpeed = 150
 envBlack = [0.2590420332355816, 0.3118279569892473, 0.3176930596285435, 0.3225806451612903, 0.21896383186705767]
 envWhite = [0.3509286412512219, 0.39296187683284456, 0.40371456500488756, 0.39296187683284456, 0.2903225806451613]
 lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
@@ -12,11 +12,11 @@ lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
 errorMaskLine	= [70.0, 30.0, 0.0, -30.0, -70.0]	#normal line
 
 #pid controller configurations https://en.wikipedia.org/wiki/Proportional–integral–derivative_controller
-proportionGain	= 0.70
+proportionGain	= 0.90
 proportionMax	= 1.00
-integralGain	= 0.05
-integralMax	= 0.10
-derivitiveGain	= 0.40
+integralGain	= 0.10
+integralMax	= 0.06
+derivitiveGain	= 0.50
 derivitiveMax	= 1.00
 
 
@@ -30,25 +30,25 @@ def clamp(value, min, max):
 
 class movementContext:
 	def __init__(self, gpg, propGain, propMax, intgGain, intgMax, deriGain, deriMax):
- 		self.gpg = gpg
+		self.gpg = gpg
  		#pid values
 		self.Pg = propGain
 		self.Pm = propMax
- 		self.Ig = intgGain
- 		self.It = 0
- 		self.Im = intgMax
- 		self.Dg = deriGain
+		self.Ig = intgGain
+		self.It = 0
+		self.Im = intgMax
+		self.Dg = deriGain
 		self.Dm = deriMax
- 		self.Ep = 0
+		self.Ep = 0
 		self.Mr = 0
 		self.Ml = 0
 
 
 class carContext:
-	def __init__(self, id, gpg):
+	def __init__(self, id, gpg, state):
 		self.id = id
 		self.moveCtx = movementContext(gpg, proportionGain, proportionMax, integralGain, integralMax, derivitiveGain, derivitiveMax)
-
+  	self.state = state
 
 #0 = line
 #1 = package load/unloadpoint
@@ -64,18 +64,18 @@ def interpretLightPattern(lightPattern, carContext, line):
 		carContext.moveCtx.gpg.stop()
 		return 1
 	#check for [1, 1, 1, 0, 0] or [0, 0, 1, 1, 1] turn pattern
-	if clights == [1, 1, 1, 0, 0]:
-		carContext.moveCtx.gpg.stop()
-		carContext.moveCtx.It = 0;
-		carContext.moveCtx.gpg.drive_cm(5.8, True)
-		carContext.moveCtx.gpg.turn_degrees(-90)
-		return 0
-	if clights == [0, 0, 1, 1, 1]:
-		carContext.moveCtx.gpg.stop()
-		carContext.moveCtx.It = 0
-		carContext.moveCtx.gpg.drive_cm(5.8, True)
-		carContext.moveCtx.gpg.turn_degrees(90)
-		return 0
+#	if clights == [1, 1, 1, 0, 0]:
+#		carContext.moveCtx.gpg.stop()
+#		carContext.moveCtx.It = 0;
+#		carContext.moveCtx.gpg.drive_cm(5.8, True)
+#		carContext.moveCtx.gpg.turn_degrees(-90)
+#		return 0
+#	if clights == [0, 0, 1, 1, 1]:
+#		carContext.moveCtx.gpg.stop()
+#		carContext.moveCtx.It = 0
+#		carContext.moveCtx.gpg.drive_cm(5.8, True)
+#		carContext.moveCtx.gpg.turn_degrees(90)
+#		return 0
 	#check for [1, 0, 0, 0, 1] bridge pattern
 	if clights == [1, 0, 0, 0, 1]:
 		carContext.moveCtx.gpg.stop()
@@ -85,10 +85,10 @@ def interpretLightPattern(lightPattern, carContext, line):
 		carContext.moveCtx.gpg.stop()
 		carContext.moveCtx.gpg.set_speed(100)
 		carContext.moveCtx.gpg.steer(carContext.moveCtx.Ml*-1, carContext.moveCtx.Mr*-1)
-#		carContext.moveCtx.gpg.set_speed(75)
-		#carContext.moveCtx.gpg.drive_cm(-15)
-		time.sleep(3)
-		carContext.moveCtx.gpg.stop()
+		carContext.moveCtx.gpg.set_speed(75)
+		carContext.moveCtx.gpg.drive_cm(-15)
+#		time.sleep(3)
+#		carContext.moveCtx.gpg.stop()
 #		carContext.moveCtx.gpg.set_speed(10)
 		return 0;
 	#just continue forward
@@ -116,6 +116,7 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 
 	#set speed of movement
 	ctx.moveCtx.gpg.set_speed(maxSpeed-abs(maxSpeed*0.7*speedVar))
+	#ctx.moveCtx.gpg.set_speed(maxSpeed);
 
 	#calculate PID
 	prop = clamp(softErr, ctx.moveCtx.Pm*-1, ctx.moveCtx.Pm);
@@ -123,7 +124,7 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 	deri = clamp((softErr-ctx.moveCtx.Ep)/(ctime-ptime), ctx.moveCtx.Dm*-1, ctx.moveCtx.Dm);
 
     #final error and update pid internals for next loop
-	controllError = clamp(prop*ctx.moveCtx.Pg + intg*ctx.moveCtx.Ig + deri*ctx.moveCtx.Dg, -1, 1);
+	controllError = clamp((prop*ctx.moveCtx.Pg + intg*ctx.moveCtx.Ig + deri*ctx.moveCtx.Dg)*(1+1*(speedVar/200)), -1, 1);
 	ctx.moveCtx.It = intg;
 	ctx.moveCtx.Ep = softErr;
 
@@ -135,14 +136,25 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 		lMotor = 100;
 	elif softErr > 0.0:
 		rMotor = 100.0;
-		lMotor = (1.0-controllError)*100.0
+		lMotor = (1.0-controllError)*140.0-40.0
 	else:
 		lMotor = 100.0;
-		rMotor = (-1.0-controllError)*-100.0
+		rMotor = (-1.0-controllError)*-140.0-40.0
 	ctx.moveCtx.gpg.steer(lMotor, rMotor)
 	ctx.moveCtx.Ml = lMotor;
 	ctx.moveCtx.Mr = rMotor;
 
+#states
+	#0 wait for load
+	#1 goint to bridge with load
+	#2 waiting for bridge with load
+	#3 crossing the bridge with load
+	#4 going to unload
+	#5 waiting to unload
+	#6 going to bridge w/o loadd
+	#7 waiting bridge w/o load
+	#8 crossing bridge w/o load
+	#9 going to get load
 
 
 def main():
@@ -150,7 +162,7 @@ def main():
 	button = gpg.init_button_sensor()
 	distance = gpg.init_distance_sensor()
 	line = EasyLineFollower()
-	ctx = carContext(ID, gpg);
+	ctx = carContext(ID, gpg, 0);
 	ctx.moveCtx.gpg.stop();
 
 #	calibration helper
@@ -163,17 +175,37 @@ def main():
 	lits = line.read()
 
 	while button.is_button_pressed() == False:
-		if distance.read() < 10:
-			ctx.moveCtx.gpg.stop()
-			continue;
-		if interpretLightPattern(lits, ctx, line) != 0:
-			ctx.moveCtx.gpg.stop()
-			break;
-		ctime = time.time();
-		lits=line.read()
-		motorCtrl(lits, ctx, ctime, ptime)
-		if button.is_button_pressed():
-			break;
-		ptime = ctime
+
+		# someting to determen based of state
+		lits=line.read();
+		nxtState = 0;
+		if ctx.state in [0, 2, 5, 7]: # if state is a wait state
+			time.sleep(0.5);
+			ctx.moveCtx.It =0;
+			ctx.state = (ctx.state+1)%10;
+			#ctx.moveCtx.gpg.set_speed(50);
+			ctx.moveCtx.gpg.drive_cm(13.0);
+			time.sleep(0.5)
+		else:
+			if distance.read() < 10:
+				ctx.moveCtx.gpg.stop()
+				#ctx.moveCtx.gpg.set_speed(50);
+				#ctx.moveCtx.gpg.drive_cm(5);
+				continue;
+			nxtState = interpretLightPattern(lits, ctx, line)
+			if nxtState != 0:
+				ctx.state = (ctx.state+1)%8;
+				continue;
+			ctime = time.time();
+			#if ctx.state in [1, 3, 4, 6, 8, 9]:
+#			ctx.moveCtx.gpg.stop()
+#			break;
+			ctime = time.time();
+			#lits=line.read()
+			motorCtrl(lits, ctx, ctime, ptime)
+			ptime = ctime;
+			if button.is_button_pressed():
+				break;
+#			ptime = ctime
 	ctx.moveCtx.gpg.stop()
 main()
