@@ -22,12 +22,9 @@ class CarState(IntEnum):
 
 #static values for car instance could be provided as commandline arguments
 ID = 0				#id of car exposed to mqtt
-#Dir = 1;
-maxSpeed = 180
+maxSpeed = 200
 envBlack = [0.2590420332355816, 0.3118279569892473, 0.3176930596285435, 0.3225806451612903, 0.21896383186705767]
-#envBlack = [0.31, 0.31, 0.31, 0.31, 0.31]
 envWhite = [0.3509286412512219, 0.39296187683284456, 0.40371456500488756, 0.39296187683284456, 0.2903225806451613]
-#envWhite = [0.35, 0.35, 0.35, 0.35, 0.35]
 lineBlackTrigger = [(a + b) / 2 for a,b in zip(envBlack, envWhite)]
 
 
@@ -72,15 +69,6 @@ class musicContext:
 		self.buz = gpg.init_buzzer('AD2');
 		self.buz.sound(0);
 		self.buz.sound_off();
-#	def __init__(self, buz, delay, attack, attackStr, hold, decay, sustain, release):
-#		self.buz = buz;
-#		self.delayT = delay;
-#		self.attackT = attack;
-#		self.attackS = attackStr;
-#		self.holdT = hold;
-#		self.decay = decay;
-#		self.sustain = 0;
-#		self.release = 0;
 
 class carContext:
 	def __init__(self, id, gpg, state, car_id):
@@ -98,35 +86,51 @@ class carContext:
 		print("New state %s" % self.state)
 
 #0 = line
-#1 = package load/unloadpoint
-#2 = bridge point
-#3 = no line
+#2 = package load/unloadpoint
+#0 = no line
 def interpretLightPattern(lightPattern, carContext, line):
 	clights = [0, 0, 0, 0, 0]
 	for i in range(len(lightPattern)):
 		clights[i] = 1 if lightPattern[i] < lineBlackTrigger[i] else 0;
-	print(clights)
-	#check for [1, 0, 1, 0, 1] pattern and inform mqtt of either unload or load procedure
-	if clights == [1, 0, 1, 0, 1]:
-		carContext.moveCtx.gpg.stop()
-		return 1
-	#check for [1, 0, 0, 0, 1] bridge pattern
-	if clights == [1, 0, 0, 0, 1]:
+	#print(clights)
+	if clights == [1, 1, 1, 1, 1]:
 		carContext.moveCtx.gpg.stop()
 		return 2;
 
 	if clights == [0, 0, 0, 0, 0]:
-		carContext.moveCtx.gpg.drive_cm(-2)
 		carContext.moveCtx.gpg.turn_degrees(8*((math.ceil(carContext.moveCtx.Ep)-0.5)*2));
 		return 0;
 	#just continue forward
 	return 0
 
 def speakerCtrl(ctx, ctime):
-	noteF = [293, 494, 587, 494, 392, 293, 494, 587, 494, 392, 293, 523, 523, 440, 440, 392, 0];
-	noteL = [0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 0.5, 1.0, 0.5, 3.0, 10];
+    # jäätelö auto
+    noteF = [ 293,  494,  587,  494, 392,  293,  494,  587,  494, 392, 293, 523,  523, 440,  440, 392, 0];
+	noteL = [0.25, 0.25, 0.25, 0.25, 0.5, 0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 0.5, 0.25, 0.5, 0.25, 1.5, 5];
+    # suuri ja mahtava neuvosto liitto  (matakat nuotit eivät toimi pitäis kasvattaa semitoneja)
+#	noteF = [262, 262, 262, 523, 523, 523, 523, 523, 523, 622, 622, 311, 466, 466, 466, 932, 523, 523,
+#		587, 587, 294, 392, 392, 392, 392, 523, 523, 466, 466, 466, 415, 415, 466, 466, 311, 311,
+#		311, 311, 349, 349, 349, 392, 392, 415, 415, 415, 415, 415, 466, 466, 932, 523, 523, 587,
+#		587, 622, 622, 698, 698, 698, 698, 698, 698, 784, 784, 784, 622, 622, 698, 698, 587, 587,
+#		587, 294, 392, 392, 392, 392, 523, 523, 466, 466, 466, 415, 415, 466, 466, 311, 311, 311,
+#		0.0	];
+#	noteL = [0.5, 0.50, 0.50, 0.50, 1.00, 1.00, 1.00, 1.00, 1.0, 1.00, 1.00, 1.00, 0.50, 0.50, 0.50, 0.50, 0.25, 0.25,
+#		1.00, 1.00, 1.00, 0.50, 0.50, 0.50, 0.50, 1.00, 1.0, 0.50, 0.50, 0.50, 0.25, 0.25, 1.00, 1.00, 0.50, 0.5,
+#		0.50, 0.50, 1.50, 1.50, 1.50, 0.25, 0.25, 1.00, 1.0, 0.50, 0.50, 0.50, 0.25, 0.25, 0.25, 1.00, 1.00, 0.5,
+#		0.50, 0.50, 0.50, 1.50, 1.50, 1.50, 1.50, 1.50, 1.5, 1.50, 1.50, 1.50, 0.25, 0.25, 1.00, 1.00, 0.50, 0.5,
+#		0.50, 0.50, 0.50, 1.50, 1.50, 1.50, 0.25, 0.25, 1.0, 1.00, 1.00, 0.50, 0.50, 0.50, 0.50, 1.00, 1.00, 0.5,
+#		10.0];
+    # dixie
+#   noteF = [392, 392, 261, 261, 261, 293, 329, 349, 392, 392, 392, 392, 0];
+#   noteL = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 10];
+    # daisy bell
+#   noteF = [784, 659, 523, 392,  440,  494,  523, 440, 523, 392, 0];
+#    noteL = [1.0, 1.0, 1.0, 1.0, 0.25, 0.25, 0.25, 0.5, 0.5, 2.0, 10];
+    # toreador
+#    noteF = [494,    0, 554, 494,  415,    0, 415,    0, 415,    0, 370,  415,  440, 415,   0, 440,    0, 370,  494, 415,   0,  329, 277,  370, 247, 0];
+#    noteL = [0.5, 0.25, 0.5, 0.25, 0.5, 0.25, 0.5, 0.25, 0.5, 0.25, 0.25, 0.5, 0.25, 1.0, 0.5, 0.5, 0.25, 0.5, 0.25, 1.0, 0.5,  0.5, 0.5, 0.25, 1.0, 10];
 
-	delay=0.00
+	delay=0.01 #0.00
 	attack=0.05
 	attackS=0.5
 	hold=0.02
@@ -136,9 +140,8 @@ def speakerCtrl(ctx, ctime):
 
 	dtime = ctime-ctx.musCtx.ptime;
 	if dtime > noteL[ctx.musCtx.noteI]*0.5:
-		ctx.musCtx.noteI = (ctx.musCtx.noteI+1)%17; # len(noteF);
+		ctx.musCtx.noteI = (ctx.musCtx.noteI+1)%len(noteF);
 		ctx.musCtx.ptime = ctime;
-#		ctx.musCtx.buz.sound(noteF[ctx.musCtx.noteI]);
 	noteI = ctx.musCtx.noteI;
 
 	if dtime < delay:
@@ -157,29 +160,73 @@ def speakerCtrl(ctx, ctime):
 	else:
 		ctx.musCtx.buz.sound(0);
 
+def lightCtrl(ctx, ctime):
+	ind = math.sin(ctime*6.28);
+	rind = math.sin(ctime*6.28/65);
+	gind = math.sin(ctime*6.28/130);
+	bind = math.sin(ctime*6.28/195);
+	ctx.moveCtx.gpg.set_eye_color((int(ind*255), int(gind*255), int(bind*255)));
+	#ind = 1
+	if ctx.state in [1, 3, 4, 6, 8, 9]:
+		if abs(ctx.moveCtx.Ep) <= 0.05:
+			ctx.moveCtx.gpg.blinker_off("left");
+			ctx.moveCtx.gpg.blinker_off("right");
+			ctx.moveCtx.gpg.close_eyes();
+		elif ctx.moveCtx.Ep > 0:
+			#left
+			ctx.moveCtx.gpg.blinker_off("right");
+			ctx.moveCtx.gpg.close_left_eye();
+#			if ind > 0:
+			ctx.moveCtx.gpg.blinker_on("left");
+			ctx.moveCtx.gpg.open_right_eye();
+#			else:
+#				ctx.moveCtx.gpg.blinker_off("left");
+#				ctx.moveCtx.gpg.close_left_eye();
+		else:
+			#right
+			ctx.moveCtx.gpg.blinker_off("left");
+			ctx.moveCtx.gpg.close_right_eye();
+#			if ind > 0:
+			ctx.moveCtx.gpg.blinker_on("right");
+			ctx.moveCtx.gpg.open_left_eye();
+#			else:
+#				ctx.moveCtx.gpg.blinker_off("right");
+#				ctx.moveCtx.gpg.close_right_eye();
+#	elif ctx.state in [2, 7]:
+#		if ind > 0:
+#			ctx.moveCtx.gpg.blinker_on("left");
+#			ctx.moveCtx.gpg.blinker_on("right");
+#			ctx.moveCtx.gpg.open_eyes();
+#		else:
+#			ctx.moveCtx.gpg.blinker_off("left");
+#			ctx.moveCtx.gpg.blinker_off("right");
+#			ctx.moveCtx.gpg.close_eyes();
+	else: #[5, 0]
+		ctx.moveCtx.gpg.blinker_off("right");
+		ctx.moveCtx.gpg.blinker_off("left");
+		ctx.moveCtx.gpg.close_eyes();
+
 def motorCtrl(lightPattern, ctx, ctime, ptime):
 	#hard intager values
-	hardErr = 0;
-	for i in range(len(lightPattern)):
-		hardErr += (1 if lightPattern[i] < lineBlackTrigger[i] else 0)*errorMaskLine[i];
-	hardErr /= 100.0;
+#	hardErr = 0;
+#	for i in range(len(lightPattern)):
+#		hardErr += (1 if lightPattern[i] < lineBlackTrigger[i] else 0)*errorMaskLine[i];
+#	hardErr /= 100.0;
 
 	#softer floating point values
 	softErr = 0
 	for i in range(len(lightPattern)):
 		softErr += clamp(float(lightPattern[i]-envWhite[i])/float(envBlack[i]-envWhite[i]), 0, 1)*errorMaskLine[i];
-#	softErr = (softErr/100.0+hardErr*2)/3
-#	softErr = ((softErr/100.0)*2+hardErr)/3
 	softErr /= 100.0
 
-	#speedVar = 0;
-	#for i in range(len(lightPattern)):
-#		speedVar += clamp(float(lightPattern[i]-envWhite[i])/float(envBlack[i]-envWhite[i]), 0, 1)*abs(errorMaskLine[i]);
-#	speedVar /= 200;
+	speedVar = 0;
+	for i in range(len(lightPattern)):
+		speedVar += clamp(float(lightPattern[i]-envWhite[i])/float(envBlack[i]-envWhite[i]), 0, 1)*abs(errorMaskLine[i]);
+	speedVar /= 200;
 
 	#set speed of movement
-	#ctx.moveCtx.gpg.set_speed(maxSpeed-abs(maxSpeed*0.7*speedVar))
-	ctx.moveCtx.gpg.set_speed(maxSpeed);
+	ctx.moveCtx.gpg.set_speed(maxSpeed-abs(maxSpeed*0.7*speedVar))
+	#ctx.moveCtx.gpg.set_speed(maxSpeed);
 
 	#calculate PID
 	prop = clamp(softErr, ctx.moveCtx.Pm*-1, ctx.moveCtx.Pm);
@@ -187,7 +234,6 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 	deri = clamp((softErr-ctx.moveCtx.Ep)/(ctime-ptime), ctx.moveCtx.Dm*-1, ctx.moveCtx.Dm);
 
 	#final error and update pid internals for next loop
-	#controllError = clamp((prop*ctx.moveCtx.Pg + intg*ctx.moveCtx.Ig + deri*ctx.moveCtx.Dg)*(1+1*(speedVar/200)), -1, 1);
 	controllError = prop*ctx.moveCtx.Pg + intg*ctx.moveCtx.Ig + deri*ctx.moveCtx.Dg;
 	ctx.moveCtx.It = intg;
 	ctx.moveCtx.Ep = softErr;
@@ -195,9 +241,6 @@ def motorCtrl(lightPattern, ctx, ctime, ptime):
 	#calculate motor controll values
 	lMotor = 0;
 	rMotor = 0;
-	#if abs(softErr) <= 0.08:
-	#	rMotor = 100;
-	#	lMotor = 100;
 	if softErr > 0.0:
 		rMotor = 100.0;
 		lMotor = (1.0-controllError)*140.0-40.0
@@ -250,23 +293,25 @@ def MQTTStateHandler(ctx, mqttclient):
 	if ctx.state == CarState.WAIT_LOAD:
 		mqttclient.publish("robot/dispenser/load", json.dumps({ "id": str(ctx.car_id) }))
 		while ctx.resp_queue.get() != "dispenser":
-			pass
+			lightCtrl(ctx, time.time());
+			time.sleep(1);
 	elif ctx.state == CarState.WAIT_FOR_BRIDGE_WLOAD:
 		mqttclient.publish("robot/bridge/move", json.dumps({ "position": "to_builder", "requestee": str(ctx.car_id) }))
 		while ctx.resp_queue.get() != "bridge":
-			pass
+			lightCtrl(ctx, time.time());
+			time.sleep(1);
 	elif ctx.state in (CarState.TO_UNLOAD, CarState.GETTING_LOAD):
 		mqttclient.publish("robot/bridge/unlock", json.dumps({ "id": str(ctx.car_id) }))
-#	elif ctx.state == CarState.GETTING_LOAD:
-#		mqttclient
 	elif ctx.state == CarState.WAIT_FOR_UNLOAD:
 		mqttclient.publish("robot/final/unload", json.dumps({ "id": str(ctx.car_id) }))
 		while ctx.resp_queue.get() != "final":
-			pass
+			lightCtrl(ctx, time.time());
+			time.sleep(1);
 	elif ctx.state == CarState.WAIT_BRIDGE_WOLOAD:
 		mqttclient.publish("robot/bridge/move", json.dumps({ "position": "to_dispenser", "requestee": str(ctx.car_id) }))
 		while ctx.resp_queue.get() != "bridge":
-			pass
+			lightCtrl(ctx, time.time());
+			time.sleep(1);
 
 def main():
 	gpg = EasyGoPiGo3()
@@ -284,68 +329,65 @@ def main():
 
 	client.connect("192.168.1.130", 1883, 60)
 	print(client.loop_start())
-	#client.connect("192.168.1.130", 1883, 60)
-
+	ctx.moveCtx.gpg.drive_cm(10);
 #	calibration helper
-	for x in range(5):
-		lits = line.read()
-		print(lits, interpretLightPattern(lits, ctx, line));
-		time.sleep(1)
+#	for x in range(5):
+#		lits = line.read()
+#		print(lits, interpretLightPattern(lits, ctx, line));
+#		time.sleep(1)
 
 	ptime = time.time()
 	lits = line.read()
 	ctx.musCtx.buz.sound_off();
 
-	while button.is_button_pressed() == False:
-
+	while True: # button.is_button_pressed() == False:
+		ctime = time.time()
+		lightCtrl(ctx, ctime)
 		# someting to determen based of state
 		nxtState = 0;
 		if ctx.state in (0, 2, 5, 7): # if state is a wait state
 			MQTTStateHandler(ctx, client)
-			#time.sleep(0.5);
-			#if ctx.state.value > 20:
 			ctx.moveCtx.It =0;
-			#ctx.moveCtx.gpg.set_speed(50);
 			ctx.moveCtx.gpg.drive_cm(13.0);
 			ctx.next_state()
 			time.sleep(0.5)
 		else:
-#			if distance.read() < 10:
-#				ctx.moveCtx.gpg.stop()
-				#ctx.moveCtx.gpg.set_speed(50);
-				#ctx.moveCtx.gpg.drive_cm(5);
-#				continue;
-			lits = line.read();
+            # run speaker code
+			if ctx.state == 4: # in (4, 9):
+				speakerCtrl(ctx, ctime);
+            # stop on obstickle
+			if distance.read() < 10:
+				ctx.moveCtx.gpg.stop()
+				continue;
+            #check if we need to change state
+            lits = line.read();
 			nxtState = interpretLightPattern(lits, ctx, line)
 			if nxtState != 0:
+                #stop music and update lights
 				ctx.moveCtx.gpg.stop();
 				ctx.musCtx.buz.sound(0);
 				ctx.musCtx.buz.sound_off();
 				ctx.next_state()
+				lightCtrl(ctx, ctime);
+                #send mqtt data incase we are in a state that needs it
 				if ctx.state in (4, 9):
 					MQTTStateHandler(ctx, client)
 					if ctx.state == 4:
 						ctx.musCtx.noteI = 0;
-						ctx.musCtx.ptime = time.time();
+						ctx.musCtx.ptime = ctime;
 						ctx.musCtx.buz.sound_on()
 						speakerCtrl(ctx, ctime);
 					ctx.moveCtx.gpg.drive_cm(5)
-#				ctx.next_state()
 				continue;
-			#ctime = time.time();
-			#if not ctx.state.value:
-#			ctx.moveCtx.gpg.stop()
-#			break;
-			ctime = time.time();
-			lits=line.read()
+            #lits=line.read()
+            #run motos controll code
 			motorCtrl(lits, ctx, ctime, ptime)
 			ptime = ctime;
-			if button.is_button_pressed():
+            #check kill switch
+            if button.is_button_pressed():
 				break;
-			if ctx.state == 4: # in (4, 9):
-				speakerCtrl(ctx, ctime);
-#			ptime = ctime
+    #teardown
 	ctx.moveCtx.gpg.stop()
 	client.loop_stop(force=True)
-
+	ctx.musCtx.buz.sound_off();
 main()
